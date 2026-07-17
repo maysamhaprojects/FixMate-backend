@@ -32,6 +32,7 @@ public class ProService {
         if (req.getBio() != null) profile.setBio(req.getBio());
         if (req.getLocation() != null) profile.setLocation(req.getLocation());
         if (req.getHourlyRate() != null) profile.setHourlyRate(req.getHourlyRate());
+        if (req.getHourlyRateMax() != null) profile.setHourlyRateMax(req.getHourlyRateMax());
         if (req.getYearsExperience() != null) profile.setYearsExperience(req.getYearsExperience());
         if (req.getProfilePicture() != null) profile.setProfilePicture(req.getProfilePicture());
         return proProfileRepository.save(profile);

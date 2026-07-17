@@ -54,6 +54,7 @@ public class AuthService {
             if (req.getSpecialty() != null) profile.setSpecialty(req.getSpecialty());
             if (req.getLocation() != null) profile.setLocation(req.getLocation());
             if (req.getHourlyRate() != null) profile.setHourlyRate(req.getHourlyRate());
+            if (req.getHourlyRateMax() != null) profile.setHourlyRateMax(req.getHourlyRateMax());
             if (req.getBio() != null) profile.setBio(req.getBio());
             if (req.getYearsExperience() != null) profile.setYearsExperience(req.getYearsExperience());
             if (req.getDocuments() != null) profile.setDocuments(req.getDocuments());

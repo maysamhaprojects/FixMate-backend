@@ -22,7 +22,8 @@ public class ProProfile {
 
     private String location;
 
-    private Double hourlyRate;
+    private Double hourlyRate;      // מחיר מינימלי לשעה (תחתית הטווח)
+    private Double hourlyRateMax;   // מחיר מקסימלי לשעה (ראש הטווח)
 
     private Double averageRating = 0.0;
 
@@ -61,6 +62,9 @@ public class ProProfile {
 
     public Double getHourlyRate() { return hourlyRate; }
     public void setHourlyRate(Double hourlyRate) { this.hourlyRate = hourlyRate; }
+
+    public Double getHourlyRateMax() { return hourlyRateMax; }
+    public void setHourlyRateMax(Double hourlyRateMax) { this.hourlyRateMax = hourlyRateMax; }
 
     public Double getAverageRating() { return averageRating; }
     public void setAverageRating(Double averageRating) { this.averageRating = averageRating; }

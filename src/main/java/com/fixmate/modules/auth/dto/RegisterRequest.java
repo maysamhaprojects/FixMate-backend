@@ -26,6 +26,7 @@ public class RegisterRequest {
     private String specialty;
     private String location;
     private Double hourlyRate;
+    private Double hourlyRateMax;
     private String bio;
     private Integer yearsExperience;
     private String documents;
@@ -53,6 +54,9 @@ public class RegisterRequest {
 
     public Double getHourlyRate() { return hourlyRate; }
     public void setHourlyRate(Double hourlyRate) { this.hourlyRate = hourlyRate; }
+
+    public Double getHourlyRateMax() { return hourlyRateMax; }
+    public void setHourlyRateMax(Double hourlyRateMax) { this.hourlyRateMax = hourlyRateMax; }
 
     public String getBio() { return bio; }
     public void setBio(String bio) { this.bio = bio; }

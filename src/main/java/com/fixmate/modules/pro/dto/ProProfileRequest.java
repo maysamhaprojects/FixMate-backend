@@ -6,6 +6,7 @@ public class ProProfileRequest {
     private String bio;
     private String location;
     private Double hourlyRate;
+    private Double hourlyRateMax;
     private Integer yearsExperience;
     private String profilePicture;
 
@@ -20,6 +21,9 @@ public class ProProfileRequest {
 
     public Double getHourlyRate() { return hourlyRate; }
     public void setHourlyRate(Double hourlyRate) { this.hourlyRate = hourlyRate; }
+
+    public Double getHourlyRateMax() { return hourlyRateMax; }
+    public void setHourlyRateMax(Double hourlyRateMax) { this.hourlyRateMax = hourlyRateMax; }
 
     public Integer getYearsExperience() { return yearsExperience; }
     public void setYearsExperience(Integer yearsExperience) { this.yearsExperience = yearsExperience; }
