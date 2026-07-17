@@ -67,6 +67,12 @@ public class BookingController {
                                                       @PathVariable Long id,
                                                       @RequestBody Map<String, String> body) {
         BookingStatus status = BookingStatus.valueOf(body.get("status"));
-        return ResponseEntity.ok(bookingService.updateStatus(id, status, user));
+        // מחיר סופי — נשלח רק כשמסמנים "הושלם". null אם לא נשלח.
+        Double finalPrice = null;
+        String priceStr = body.get("finalPrice");
+        if (priceStr != null && !priceStr.isBlank()) {
+            try { finalPrice = Double.parseDouble(priceStr); } catch (NumberFormatException ignored) {}
+        }
+        return ResponseEntity.ok(bookingService.updateStatus(id, status, finalPrice, user));
     }
 }

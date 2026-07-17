@@ -69,7 +69,7 @@ public class BookingService {
         return bookingRepository.findByProIdOrderByCreatedAtDesc(proId);
     }
 
-    public Booking updateStatus(Long bookingId, BookingStatus newStatus, User requester) {
+    public Booking updateStatus(Long bookingId, BookingStatus newStatus, Double finalPrice, User requester) {
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new RuntimeException("Booking not found"));
 
@@ -81,6 +81,10 @@ public class BookingService {
         }
 
         booking.setStatus(newStatus);
+        // בסיום העבודה — בעל המקצוע קובע את המחיר הסופי של ההזמנה
+        if (newStatus == BookingStatus.COMPLETED && finalPrice != null) {
+            booking.setTotalPrice(finalPrice);
+        }
         Booking saved = bookingRepository.save(booking);
 
         // מייל ללקוח על עדכון הסטטוס
@@ -91,7 +95,9 @@ public class BookingService {
             String line = switch (newStatus) {
                 case CONFIRMED   -> "ההזמנה שלך אושרה על ידי " + proName + "!";
                 case IN_PROGRESS -> proName + " התחיל לטפל בהזמנה שלך.";
-                case COMPLETED   -> "העבודה עם " + proName + " הושלמה. אפשר לדרג את השירות ב-FixMate!";
+                case COMPLETED   -> "העבודה עם " + proName + " הושלמה"
+                                    + (booking.getTotalPrice() != null ? ". המחיר הסופי: ₪" + booking.getTotalPrice() : "")
+                                    + ". אפשר לדרג את השירות ב-FixMate!";
                 case CANCELLED   -> "ההזמנה שלך בוטלה.";
                 default          -> null;
             };
