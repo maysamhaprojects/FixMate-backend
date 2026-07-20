@@ -1,11 +1,17 @@
+# ============================================================
+#  קובץ תצורה לדוגמה — אינו מכיל סודות אמיתיים.
+#  התצורה הפעילה נמצאת ב-application.properties, שאינו נכלל ב-git.
+#  להרצה מקומית: צרו application.properties ומלאו את הערכים שלכם.
+# ============================================================
+
 server:
   port: 8080
 
 spring:
   datasource:
-    url: jdbc:mysql://localhost:3306/fixmate?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
-    username: root
-    password: your_password_here
+    url: jdbc:mysql://localhost:3306/fixmate_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
   jpa:
@@ -19,5 +25,6 @@ spring:
 
 app:
   jwt:
-    secret: FixMateSuperSecretKey_ChangeMe_123456789012345678901234
+    # הערך האמיתי מוגדר ב-application.properties המקומי
+    secret: ${JWT_SECRET:}
     expiration-ms: 86400000
