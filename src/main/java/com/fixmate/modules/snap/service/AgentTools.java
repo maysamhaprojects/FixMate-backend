@@ -1,6 +1,8 @@
 package com.fixmate.modules.snap.service;
 
 import com.fixmate.modules.auth.model.User;
+import com.fixmate.modules.availability.model.ProAvailability;
+import com.fixmate.modules.availability.service.AvailabilityService;
 import com.fixmate.modules.booking.dto.BookingRequest;
 import com.fixmate.modules.booking.model.Booking;
 import com.fixmate.modules.booking.service.BookingService;
@@ -13,6 +15,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -33,11 +36,14 @@ public class AgentTools {
     private final ProService proService;
     private final BookingService bookingService;
     private final RatingService ratingService;
+    private final AvailabilityService availabilityService;
 
-    public AgentTools(ProService proService, BookingService bookingService, RatingService ratingService) {
+    public AgentTools(ProService proService, BookingService bookingService,
+                      RatingService ratingService, AvailabilityService availabilityService) {
         this.proService = proService;
         this.bookingService = bookingService;
         this.ratingService = ratingService;
+        this.availabilityService = availabilityService;
     }
 
     /** ההגדרות שנשלחות ל-OpenAI — מה הסוכן רשאי לעשות ואילו פרמטרים צריך */
@@ -61,6 +67,20 @@ public class AgentTools {
                  + "offer activeOrders. Use for 'where is my pro?' and 'what's happening with my order?'.",
                  Map.of(),
                  List.of()),
+
+            tool("check_availability",
+                 "Check whether a professional works at a requested date-time, and if not, "
+                 + "which other professionals of the same trade are available then. "
+                 + "ALWAYS call this before create_booking and before reschedule_booking, "
+                 + "and present the alternatives it returns.",
+                 Map.of(
+                     "proId",      param("integer", "the professional the user picked"),
+                     "specialty",  enumParam("trade, to find alternatives",
+                         "electrical", "plumbing", "ac", "painting",
+                         "carpentry", "cleaning", "locksmith", "appliances"),
+                     "scheduledAt", param("string", "requested ISO date-time, e.g. 2026-07-23T15:00:00")
+                 ),
+                 List.of("proId", "specialty", "scheduledAt")),
 
             tool("create_booking",
                  "Book a professional. NEVER call this until the user has explicitly confirmed the specific pro, date and time.",
@@ -109,6 +129,7 @@ public class AgentTools {
         try {
             return switch (name) {
                 case "search_professionals" -> searchPros(str(args, "specialty"), str(args, "location"));
+                case "check_availability"   -> checkAvailability(args);
                 case "get_my_orders"        -> myOrders(user);
                 case "create_booking"       -> createBooking(args, user);
                 case "cancel_booking"       -> cancelBooking(args, user);
@@ -211,6 +232,87 @@ public class AgentTools {
             out.add(m);
         }
         return Map.of("results", out);
+    }
+
+    /**
+     * בודק אם בעל המקצוע שנבחר עובד במועד המבוקש. אם לא — מחזיר רשימת
+     * בעלי מקצוע אחרים מאותו תחום שכן עובדים אז. משמש לפני הזמנה ושינוי מועד.
+     */
+    private Object checkAvailability(Map<String, Object> args) {
+        Long proId = asLong(args.get("proId"));
+        String specialty = str(args, "specialty");
+
+        LocalDateTime when;
+        try {
+            when = LocalDateTime.parse(str(args, "scheduledAt"));
+        } catch (DateTimeParseException | NullPointerException e) {
+            return Map.of("error", "scheduledAt must be ISO format like 2026-07-23T15:00:00");
+        }
+
+        boolean chosenAvailable = worksAt(proId, when);
+        if (chosenAvailable) {
+            return Map.of("available", true, "proId", proId);
+        }
+
+        // בעל המקצוע שנבחר לא עובד אז — מחפשים חלופות מאותו תחום
+        List<String> terms = SPECIALTY_SYNONYMS.getOrDefault(
+                specialty == null ? "" : specialty.toLowerCase().trim(),
+                specialty == null || specialty.isBlank() ? List.of() : List.of(specialty.toLowerCase()));
+
+        List<Map<String, Object>> alternatives = new ArrayList<>();
+        List<ProProfile> all = proService.searchPros(null, null);
+        if (all != null) {
+            for (ProProfile p : all) {
+                if (p.getUser() == null) continue;
+                Long uid = p.getUser().getId();
+                if (uid.equals(proId)) continue;                       // לא את מי שכבר נבחר
+                if (!terms.isEmpty() && !matches(p.getSpecialty(), terms)) continue;
+                if (!worksAt(uid, when)) continue;                     // רק מי שפנוי אז
+                Map<String, Object> m = new LinkedHashMap<>();
+                m.put("proId", uid);
+                m.put("name", p.getUser().getFullName());
+                m.put("location", p.getLocation());
+                m.put("priceRange", priceRange(p));
+                m.put("rating", p.getAverageRating());
+                m.put("workingHours", workingHoursText(uid, when));
+                alternatives.add(m);
+                if (alternatives.size() >= 5) break;
+            }
+        }
+
+        return Map.of(
+            "available", false,
+            "chosenProWorkingHours", workingHoursText(proId, when),
+            "alternatives", alternatives
+        );
+    }
+
+    /** האם בעל המקצוע עובד ביום ובשעה של המועד הנתון */
+    private boolean worksAt(Long proUserId, LocalDateTime when) {
+        if (proUserId == null) return false;
+        String day = when.getDayOfWeek().name();   // SUNDAY, MONDAY, ...
+        LocalTime t = when.toLocalTime();
+        List<ProAvailability> slots = availabilityService.getAvailability(proUserId);
+        if (slots == null) return false;
+        for (ProAvailability s : slots) {
+            if (!day.equalsIgnoreCase(s.getDayOfWeek())) continue;
+            if (!s.isAvailable()) continue;
+            if (s.getStartTime() == null || s.getEndTime() == null) continue;
+            if (!t.isBefore(s.getStartTime()) && !t.isAfter(s.getEndTime())) return true;
+        }
+        return false;
+    }
+
+    /** תיאור שעות העבודה של בעל המקצוע ביום המבוקש, לצורך הודעה למשתמש */
+    private String workingHoursText(Long proUserId, LocalDateTime when) {
+        String day = when.getDayOfWeek().name();
+        for (ProAvailability s : availabilityService.getAvailability(proUserId)) {
+            if (day.equalsIgnoreCase(s.getDayOfWeek()) && s.isAvailable()
+                    && s.getStartTime() != null && s.getEndTime() != null) {
+                return s.getStartTime() + "-" + s.getEndTime();
+            }
+        }
+        return "not working that day";
     }
 
     /** האם ההתמחות הרשומה מכילה אחת מהמילים הנרדפות */
