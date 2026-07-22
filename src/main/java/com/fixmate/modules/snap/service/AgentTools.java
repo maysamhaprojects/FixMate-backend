@@ -161,6 +161,7 @@ public class AgentTools {
             m.put("location", p.getLocation());
             m.put("priceRange", priceRange(p));
             m.put("rating", p.getAverageRating());
+            m.put("workingHours", weeklyHoursText(p.getUser().getId()));  // כדי שלא ימציא שעות
             out.add(m);
         }
         return out;
@@ -249,12 +250,22 @@ public class AgentTools {
             return Map.of("error", "scheduledAt must be ISO format like 2026-07-23T15:00:00");
         }
 
-        boolean chosenAvailable = worksAt(proId, when);
-        if (chosenAvailable) {
+        // פנוי = גם בשעות העבודה (רמה א') וגם בלי הזמנה מתנגשת (רמה ב')
+        boolean chosenFree = worksAt(proId, when) && !hasClash(proId, when);
+        if (chosenFree) {
             return Map.of("available", true, "proId", proId);
         }
 
-        // בעל המקצוע שנבחר לא עובד אז — מחפשים חלופות מאותו תחום
+        // סיבת אי-הזמינות — הודעה ברורה לפי הסיבה האמיתית, כדי שהסוכן לא
+        // יבלבל בין "מחוץ לשעות" (לצטט שעות) לבין "כבר תפוס" (לא לצטט שעות)
+        boolean outsideHours = !worksAt(proId, when);
+        String reason = outsideHours
+                ? "The pro does not work then. Their working hours that day are "
+                  + workingHoursText(proId, when) + "."
+                : "The pro already has another appointment at that time (they are "
+                  + "within working hours, just booked).";
+
+        // בעל המקצוע שנבחר לא פנוי אז — מחפשים חלופות מאותו תחום
         List<String> terms = SPECIALTY_SYNONYMS.getOrDefault(
                 specialty == null ? "" : specialty.toLowerCase().trim(),
                 specialty == null || specialty.isBlank() ? List.of() : List.of(specialty.toLowerCase()));
@@ -267,7 +278,7 @@ public class AgentTools {
                 Long uid = p.getUser().getId();
                 if (uid.equals(proId)) continue;                       // לא את מי שכבר נבחר
                 if (!terms.isEmpty() && !matches(p.getSpecialty(), terms)) continue;
-                if (!worksAt(uid, when)) continue;                     // רק מי שפנוי אז
+                if (!worksAt(uid, when) || hasClash(uid, when)) continue;  // רק מי שבאמת פנוי אז
                 Map<String, Object> m = new LinkedHashMap<>();
                 m.put("proId", uid);
                 m.put("name", p.getUser().getFullName());
@@ -282,9 +293,29 @@ public class AgentTools {
 
         return Map.of(
             "available", false,
-            "chosenProWorkingHours", workingHoursText(proId, when),
+            "reason", reason,
             "alternatives", alternatives
         );
+    }
+
+    /**
+     * האם לבעל המקצוע כבר יש הזמנה פעילה שמתנגשת עם המועד המבוקש.
+     * מתייחסים להזמנה פעילה (ממתינה/מאושרת) שמתחילה בתוך שעה מהמועד המבוקש
+     * כהתנגשות — הנחת ביקור של כשעה.
+     */
+    private boolean hasClash(Long proUserId, LocalDateTime when) {
+        if (proUserId == null) return false;
+        List<Booking> proBookings = bookingService.getProBookings(proUserId);
+        if (proBookings == null) return false;
+        for (Booking b : proBookings) {
+            String st = String.valueOf(b.getStatus());
+            boolean active = "PENDING".equals(st) || "CONFIRMED".equals(st);
+            if (!active || b.getScheduledAt() == null) continue;
+            long gapMinutes = Math.abs(
+                java.time.Duration.between(b.getScheduledAt(), when).toMinutes());
+            if (gapMinutes < 60) return true;   // פחות משעה הפרש = חופף
+        }
+        return false;
     }
 
     /** האם בעל המקצוע עובד ביום ובשעה של המועד הנתון */
@@ -301,6 +332,16 @@ public class AgentTools {
             if (!t.isBefore(s.getStartTime()) && !t.isAfter(s.getEndTime())) return true;
         }
         return false;
+    }
+
+    /** טווח שעות העבודה השבועי (טיפוסי) של בעל המקצוע, לצורך ההזרקה לסוכן */
+    private String weeklyHoursText(Long proUserId) {
+        for (ProAvailability s : availabilityService.getAvailability(proUserId)) {
+            if (s.isAvailable() && s.getStartTime() != null && s.getEndTime() != null) {
+                return s.getStartTime() + "-" + s.getEndTime();
+            }
+        }
+        return "unknown";
     }
 
     /** תיאור שעות העבודה של בעל המקצוע ביום המבוקש, לצורך הודעה למשתמש */
