@@ -65,18 +65,30 @@ public class RatingService {
             proProfileRepository.save(profile);
         });
 
-        // מייל לבעל המקצוע — קיבלת דירוג חדש
         User pro = booking.getPro();
+        String stars = "★".repeat(req.getScore()) + "☆".repeat(Math.max(0, 5 - req.getScore()));
+        String commentLine = (req.getComment() != null && !req.getComment().isBlank())
+                ? ("תגובה: " + req.getComment() + "\n") : "";
+
+        // מייל לבעל המקצוע — קיבלת דירוג חדש
         if (pro != null) {
-            String stars = "★".repeat(req.getScore()) + "☆".repeat(Math.max(0, 5 - req.getScore()));
             emailService.send(pro.getEmail(),
                 "FixMate — קיבלת דירוג חדש!",
                 "שלום " + pro.getFullName() + ",\n\n" +
                 client.getFullName() + " דירג/ה את השירות שלך:\n" +
                 stars + " (" + req.getScore() + "/5)\n" +
-                (req.getComment() != null && !req.getComment().isBlank() ? ("תגובה: " + req.getComment() + "\n") : "") +
+                commentLine +
                 "\nהדירוג מופיע עכשיו בפרופיל שלך ב-FixMate.\n\nצוות FixMate");
         }
+
+        // אישור ללקוח — תיעוד הדירוג שנשלח
+        emailService.send(client.getEmail(),
+            "FixMate — הדירוג שלך נשמר",
+            "שלום " + client.getFullName() + ",\n\n" +
+            "תודה! הדירוג שלך" + (pro != null ? (" עבור " + pro.getFullName()) : "") + " נשמר:\n" +
+            stars + " (" + req.getScore() + "/5)\n" +
+            commentLine +
+            "\nצוות FixMate");
 
         return saved;
     }

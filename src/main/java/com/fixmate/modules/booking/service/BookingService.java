@@ -141,6 +141,17 @@ public class BookingService {
                 "כתובת מעודכנת: " + booking.getAddress() + "\n\n" +
                 "היכנס ל-FixMate כדי לצפות ולאשר.\n\nצוות FixMate");
         }
+
+        // אישור ללקוח — מה בדיוק נשמר אחרי העדכון
+        emailService.send(client.getEmail(),
+            "FixMate — ההזמנה שלך עודכנה",
+            "שלום " + client.getFullName() + ",\n\n" +
+            "פרטי ההזמנה שלך" + (pro != null ? (" אצל " + pro.getFullName()) : "") + " עודכנו.\n" +
+            "שירות: " + booking.getServiceType() + "\n" +
+            "מועד מעודכן: " + booking.getScheduledAt() + "\n" +
+            "כתובת מעודכנת: " + booking.getAddress() + "\n\n" +
+            "ההזמנה ממתינה לאישור בעל המקצוע.\n\nצוות FixMate");
+
         return saved;
     }
 
@@ -156,6 +167,9 @@ public class BookingService {
         if (reason != null && !reason.isBlank()) booking.setCancellationReason(reason.trim());
         bookingRepository.save(booking);
 
+        String reasonLine = (reason != null && !reason.isBlank())
+                ? ("סיבת הביטול: " + reason.trim() + "\n") : "";
+
         // מייל לבעל המקצוע על הביטול (כולל הסיבה)
         User pro = booking.getPro();
         if (pro != null) {
@@ -163,8 +177,18 @@ public class BookingService {
                 "FixMate — הזמנה בוטלה",
                 "שלום " + pro.getFullName() + ",\n\n" +
                 "ההזמנה של " + client.getFullName() + " בוטלה.\n" +
-                (reason != null && !reason.isBlank() ? ("סיבת הביטול: " + reason.trim() + "\n") : "") +
+                reasonLine +
                 "\nצוות FixMate");
         }
+
+        // אישור ללקוח — תיעוד הביטול
+        emailService.send(client.getEmail(),
+            "FixMate — ההזמנה שלך בוטלה",
+            "שלום " + client.getFullName() + ",\n\n" +
+            "ההזמנה שלך" + (pro != null ? (" אצל " + pro.getFullName()) : "") + " בוטלה.\n" +
+            "שירות: " + booking.getServiceType() + "\n" +
+            "מועד שהיה מתוכנן: " + booking.getScheduledAt() + "\n" +
+            reasonLine +
+            "\nצוות FixMate");
     }
 }

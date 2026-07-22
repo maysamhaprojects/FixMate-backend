@@ -21,6 +21,10 @@ app.jwt.expiration-ms=86400000
 
 server.port=8080
 
+# --- OpenAI (ChatGPT) — leave empty to fall back to keyword matching ---
+openai.api.key=CHANGE_ME_OPENAI_API_KEY
+openai.api.model=gpt-4o-mini
+
 # ============================================================
 #  Mail (Gmail SMTP) — requires a Gmail App Password (16 chars)
 #  https://myaccount.google.com/apppasswords
