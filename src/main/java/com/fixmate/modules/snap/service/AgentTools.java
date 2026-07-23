@@ -68,6 +68,16 @@ public class AgentTools {
                  Map.of(),
                  List.of()),
 
+            tool("free_slots",
+                 "List the hours a professional is free on a given date (within working hours "
+                 + "and not already booked). Use it to offer the client concrete available times "
+                 + "instead of guessing, e.g. after they pick a pro or when a requested time is taken.",
+                 Map.of(
+                     "proId", param("integer", "the professional to check"),
+                     "date",  param("string",  "the date, ISO like 2026-07-23")
+                 ),
+                 List.of("proId", "date")),
+
             tool("check_availability",
                  "Check whether a professional works at a requested date-time, and if not, "
                  + "which other professionals of the same trade are available then. "
@@ -130,6 +140,7 @@ public class AgentTools {
             return switch (name) {
                 case "search_professionals" -> searchPros(str(args, "specialty"), str(args, "location"));
                 case "check_availability"   -> checkAvailability(args);
+                case "free_slots"           -> freeSlots(args);
                 case "get_my_orders"        -> myOrders(user);
                 case "create_booking"       -> createBooking(args, user);
                 case "cancel_booking"       -> cancelBooking(args, user);
@@ -256,14 +267,25 @@ public class AgentTools {
             return Map.of("available", true, "proId", proId);
         }
 
-        // סיבת אי-הזמינות — הודעה ברורה לפי הסיבה האמיתית, כדי שהסוכן לא
-        // יבלבל בין "מחוץ לשעות" (לצטט שעות) לבין "כבר תפוס" (לא לצטט שעות)
+        // השעות הפנויות של אותו בעל מקצוע באותו יום — מוטמעות בתוך ה-reason
+        // כדי שהסוכן יציג אותן ללקוח (המודל תמיד מוסר את ה-reason).
+        Object slotsResult = freeSlots(Map.of(
+            "proId", proId, "date", when.toLocalDate().toString()));
+        List<?> freeList = (slotsResult instanceof Map<?, ?> fm
+                && fm.get("freeSlots") instanceof List<?> l) ? l : List.of();
+        String freeText = freeList.isEmpty()
+                ? " He has no other free hours that day."
+                : " His free hours that day are: " + String.join(", ",
+                    freeList.stream().map(String::valueOf).toList()) + ".";
+
+        // סיבת אי-הזמינות — הודעה ברורה לפי הסיבה האמיתית, כולל השעות הפנויות
         boolean outsideHours = !worksAt(proId, when);
-        String reason = outsideHours
+        String reason = (outsideHours
                 ? "The pro does not work then. Their working hours that day are "
                   + workingHoursText(proId, when) + "."
-                : "The pro already has another appointment at that time (they are "
-                  + "within working hours, just booked).";
+                : "The pro already has another appointment at that time.")
+                + freeText
+                + " Offer these exact free hours to the client (do not invent others).";
 
         // בעל המקצוע שנבחר לא פנוי אז — מחפשים חלופות מאותו תחום
         List<String> terms = SPECIALTY_SYNONYMS.getOrDefault(
@@ -291,11 +313,52 @@ public class AgentTools {
             }
         }
 
+        // מצרפים ישירות את השעות הפנויות של אותו בעל מקצוע באותו יום, כדי
+        // שהסוכן יוכל להציע שעה חלופית קונקרטית בלי לקרוא לכלי נוסף.
+        Object sameDayFree = freeSlots(Map.of(
+            "proId", proId, "date", when.toLocalDate().toString()));
+        List<?> free = (sameDayFree instanceof Map<?, ?> fm && fm.get("freeSlots") instanceof List<?> l)
+                ? l : List.of();
+
         return Map.of(
             "available", false,
             "reason", reason,
+            "sameProFreeSlotsSameDay", free,
             "alternatives", alternatives
         );
+    }
+
+    /**
+     * שעות פנויות של בעל מקצוע ביום נתון — בתוך שעות העבודה, בדילוגים של שעה,
+     * בלי שעות שכבר תפוסות. מאפשר לסוכן להציע ללקוח שעות קונקרטיות.
+     */
+    private Object freeSlots(Map<String, Object> args) {
+        Long proId = asLong(args.get("proId"));
+        if (proId == null) return Map.of("error", "proId is required");
+
+        java.time.LocalDate date;
+        try {
+            date = java.time.LocalDate.parse(str(args, "date"));
+        } catch (Exception e) {
+            return Map.of("error", "date must be ISO like 2026-07-23");
+        }
+
+        String day = date.getDayOfWeek().name();
+        List<String> slots = new ArrayList<>();
+        for (ProAvailability s : availabilityService.getAvailability(proId)) {
+            if (!day.equalsIgnoreCase(s.getDayOfWeek()) || !s.isAvailable()) continue;
+            if (s.getStartTime() == null || s.getEndTime() == null) continue;
+            // שעות עגולות מתחילת המשמרת עד שעה לפני סופה
+            for (LocalTime t = s.getStartTime(); !t.isAfter(s.getEndTime().minusHours(1)); t = t.plusHours(1)) {
+                if (!hasClash(proId, date.atTime(t))) slots.add(t.toString());
+            }
+        }
+
+        if (slots.isEmpty()) {
+            return Map.of("date", date.toString(), "freeSlots", List.of(),
+                          "note", "No free slots that day — fully booked or not working.");
+        }
+        return Map.of("date", date.toString(), "freeSlots", slots);
     }
 
     /**
