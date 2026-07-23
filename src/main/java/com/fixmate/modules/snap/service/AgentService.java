@@ -226,7 +226,8 @@ public class AgentService {
         messages.addAll(history);
 
         // תמונה מצורפת — נדחפת להודעה האחרונה של המשתמש
-        if (imageBase64 != null && imageBase64.startsWith("data:image") && !messages.isEmpty()) {
+        boolean hasImage = imageBase64 != null && imageBase64.startsWith("data:image");
+        if (hasImage && !messages.isEmpty()) {
             Map<String, Object> last = messages.get(messages.size() - 1);
             if ("user".equals(last.get("role"))) {
                 messages.set(messages.size() - 1, Map.of(
@@ -237,6 +238,12 @@ public class AgentService {
                     )
                 ));
             }
+            // כשיש תמונה — מורים לסוכן לנתח אותה, לא לשאול "מה התקלה"
+            messages.add(Map.of("role", "system", "content",
+                "המשתמש צירף תמונה. הסתכל עליה ותאר בקצרה את התקלה שאתה רואה בה, "
+                + "וזהה את התחום המתאים. אל תשאל 'מה התקלה' — אתה רואה אותה בתמונה. "
+                + "אם התמונה לא ברורה מספיק, שאל שאלה ממוקדת אחת. אחר כך המשך "
+                + "כרגיל: הדרכה לתיקון עצמי אם בטוח, או הזמנת בעל מקצוע."));
         }
 
         List<String> actions = new ArrayList<>();
