@@ -44,6 +44,8 @@ public class AuthService {
         user.setPasswordHash(passwordEncoder.encode(req.getPassword()));
         user.setRole(req.getRole());
         if (req.getPhone() != null) user.setPhone(req.getPhone());
+        if (req.getProfilePicture() != null && !req.getProfilePicture().isBlank())
+            user.setProfilePicture(req.getProfilePicture());
         userRepository.save(user);
 
         // אם נרשם כבעל מקצוע — צור פרופיל עם הפרטים שנשלחו (מקצוע, עיר, מחיר, תיאור)

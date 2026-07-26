@@ -22,6 +22,9 @@ public class RegisterRequest {
 
     private String phone;
 
+    // תמונת פרופיל (base64 data URL) — אופציונלי, נשלח בהרשמה
+    private String profilePicture;
+
     // שדות אופציונליים לבעל מקצוע (נשלחים בהרשמת בעל מקצוע)
     private String specialty;
     private String location;
@@ -45,6 +48,9 @@ public class RegisterRequest {
 
     public String getPhone() { return phone; }
     public void setPhone(String phone) { this.phone = phone; }
+
+    public String getProfilePicture() { return profilePicture; }
+    public void setProfilePicture(String profilePicture) { this.profilePicture = profilePicture; }
 
     public String getSpecialty() { return specialty; }
     public void setSpecialty(String specialty) { this.specialty = specialty; }
