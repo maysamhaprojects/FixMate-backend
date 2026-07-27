@@ -1,0 +1,8 @@
+target/
+.git/
+.gitignore
+.idea/
+*.iml
+HELP.md
+# never bake the developer's real secrets into the image
+src/main/resources/application.properties
