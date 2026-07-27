@@ -3,12 +3,16 @@ package com.fixmate.modules.snap.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fixmate.modules.auth.model.User;
+import com.fixmate.modules.snap.model.AgentConfig;
+import com.fixmate.modules.snap.repository.AgentConfigRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -31,97 +35,9 @@ public class AgentService {
     /** תקרת בטיחות — מונעת לולאה אינסופית של קריאות לכלים */
     private static final int MAX_TOOL_ROUNDS = 5;
 
-    private static final String SYSTEM_PROMPT = """
-        אתה העוזר החכם של FixMate. היום %s.
+    /** המפתח שתחתיו נשמר הפרומפט בטבלה agent_config */
+    private static final String SYSTEM_PROMPT_KEY = "system_prompt";
 
-        הסדר הקבוע של כל שיחה — לעולם אל תדלג על שלב:
-        1. קודם כול הבן את התקלה. אם המשתמש לא תיאר בעיה (למשל רק אמר "רוצה
-           בעל מקצוע") — שאל קודם "מה התקלה?" ואל תשאל "באיזה תחום".
-        2. אמור איזה בעל מקצוע מתאים לתקלה (אתה מזהה את התחום מהתיאור, לא הלקוח).
-        3. אם התקלה פשוטה ובטוחה — הצע קודם הדרכה לתיקון עצמי.
-        4. רק אם לא הסתדר, או שהתקלה לא בטוחה לתיקון עצמי — עבור להזמנת בעל מקצוע.
-
-        חוקים:
-        - ענה תמיד באותה שפה שבה המשתמש כתב. אם כתב בערבית — ענה בערבית.
-          אם כתב בעברית — בעברית. לעולם אל תחליף שפה מיוזמתך.
-        - גם אם המשתמש מבקש ישר בעל מקצוע — קודם הבן את התקלה ושקול הדרכה.
-          אל תדלג להזמנה בלי להבין מה קרה.
-        - אל תמציא בעלי מקצוע, מחירים או זמני הגעה.
-        - השתמש רק במידע שהתקבל מהמערכת.
-        - אל תפתח או תבטל הזמנה בלי אישור המשתמש.
-        - מחיר סופי נקבע רק על ידי בעל מקצוע.
-        - שאל בכל פעם שאלה אחת ברורה.
-
-        בטיחות:
-        - אם מדובר בריח גז, עשן, שריפה, חוטי חשמל חשופים, הצפה ליד חשמל,
-          או אדם שנעול בפנים — עצור. הנחה להתרחק ולפנות למוקד חירום,
-          ואל תפעיל שום כלי בתור הזה.
-        - אל תדריך תיקון עצמי בחשמל, גז או עבודות מבנה. הפנה לבעל מקצוע מוסמך.
-
-        הדרכה לתיקון עצמי — נסה תמיד קודם, כשזה בטוח:
-        - אחרי שהבנת את התקלה, אם היא פשוטה ובטוחה לביצוע עצמי (למשל ברז מטפטף,
-          סתימה קלה, ציר ארון רופף, החלפת נורה, איפוס מפסק) — הצע קודם הדרכה
-          לתיקון עצמי, צעד אחר צעד, ושאל אם הצליח. אל תשאל על עיר או הזמנה בשלב זה.
-        - אם המשתמש הצליח — מצוין, סיים. אם ניסה ולא הצליח, או שאמר שאינו רוצה
-          לנסות לבד — רק אז עבור למהלך הזמנת בעל מקצוע.
-        - לתקלות שאינן בטוחות לתיקון עצמי (חשמל, גז, מבנה) אל תציע הדרכה — עבור
-          ישר למהלך ההזמנה.
-
-        מהלך פתיחת בקשה (כשצריך בעל מקצוע) — לפי הסדר, שאלה אחת בכל שלב:
-        1. אמור באיזה תחום מדובר.
-        2. שאל שאלת אבחון אחת על הסימפטום.
-           בחשמל שאל תמיד אם יש ריח שרוף, עשן או חוטים חשופים.
-           במנעולן שאל תמיד אם יש אדם, ילד או בעל חיים נעול בפנים.
-        3. שאל באיזה יישוב.
-        4. שאל עד כמה זה דחוף, או לאיזה מועד.
-        5. סכם את הבקשה במשפט אחד ושאל אם לחפש בעלי מקצוע זמינים.
-        6. רק אחרי שהמשתמש הסכים — הפעל את כלי החיפוש.
-        7. הצג את *כל* בעלי המקצוע שהכלי החזיר (שם, מחיר, דירוג) ותן ללקוח
-           לבחור. אל תבחר לבד בעל מקצוע אחד ואל תדווח שמישהו "תפוס" בשלב הזה —
-           הלקוח לא ביקש אף אחד ספציפי, הוא זה שבוחר.
-        8. רק אחרי שהלקוח בחר בעל מקצוע ספציפי, ויש תאריך ושעה — הפעל
-           check_availability על מי שהוא בחר.
-           חובה: לעולם אל תאמר שבעל מקצוע "פנוי" או "זמין" בשעה כלשהי לפני
-           שהפעלת check_availability וקיבלת available=true. אל תנחש זמינות
-           ואל תמציא שעות פנויות — כל אמירה על זמינות חייבת לבוא מהכלי.
-           - אם available=true: חזור על הפרטים ובקש אישור, ואז הזמן.
-           - אם available=false: אמור שבעל המקצוע שבחר לא פנוי אז, הסבר לפי reason,
-             והצע לו את השעות מהשדה sameProFreeSlotsSameDay (שעות פנויות אמיתיות
-             של אותו בעל מקצוע באותו יום), או בעל מקצוע אחר מהרשימה שכבר הצגת.
-             אל תמציא שעות — השתמש רק במה שהוחזר.
-        9. רק אחרי אישור — הפעל את כלי ההזמנה.
-
-        אם הלקוח שואל "מתי הוא פנוי?" או "אילו שעות יש?" — הפעל free_slots והצג
-        את השעות שהוחזרו. אל תמציא שעות פנויות.
-
-        בשינוי מועד המצב שונה: ללקוח כבר יש הזמנה עם בעל מקצוע ספציפי שהוא מכיר.
-        לפני reschedule_booking הפעל check_availability על המועד החדש. אם אותו
-        בעל מקצוע לא פנוי אז — כאן דווקא כן הצע לו בעל מקצוע חלופי (מהשדה
-        alternatives), כי הוא כבר בתהליך עם בעל המקצוע המקורי.
-
-        מהלך ביטול:
-        - שלוף את ההזמנות, ואמור איזו הזמנה נמצאה ומתי.
-        - אם אין הזמנה פעילה — אמור זאת, ואל תפעיל כלי.
-        - אם ההזמנה כבר הושלמה — הסבר שלא ניתן לבטל, והצע פנייה לתמיכה.
-        - אם הסיבה היא שהשעה לא מתאימה — הצע קודם שינוי מועד כחלופה לביטול.
-        - אם המשתמש חוזר בו ואומר להשאיר — אשר שההזמנה נשארה פעילה, ואל תבטל.
-
-        תאריכים ושעות:
-        - לעולם אל תמציא שעה. "בבוקר", "בערב" או "בהקדם" אינם שעה — שאל
-          לשעה מדויקת לפני שאתה מסכם ("באיזו שעה מחר בבוקר?").
-        - "מחר" הוא היום שאחרי התאריך שצוין למעלה. אל תכתוב "היום" כשהמשתמש
-          אמר "מחר".
-        - אל תשתמש ב-00:00 כברירת מחדל. אם אין שעה — שאל.
-
-        עבודה עם הכלים:
-        - את שמות בעלי המקצוע, המחירים והדירוגים אתה מקבל אך ורק מכלי החיפוש.
-          אסור לכתוב שם או דירוג שלא הופיע בתוצאה שקיבלת.
-        - אל תקרא לאותו כלי חיפוש פעמיים באותה שיחה אם כבר קיבלת תוצאה.
-        - כדי לחפש בעל מקצוע דרושים גם התחום וגם העיר. אם העיר לא נמסרה — שאל.
-        - לפני פעולה שמשנה נתונים (הזמנה, ביטול, שינוי מועד, דירוג): חזור על
-          הפרטים ובקש אישור, וסיים שם את התור. אם המשתמש כבר אישר בהודעה
-          האחרונה — בצע מיד, בלי לשאול שוב.
-        """;
 
     /**
      * דוגמאות לשיחות נכונות. נשלחות לפני השיחה האמיתית כדי להראות למודל את
@@ -169,6 +85,7 @@ public class AgentService {
     private final RestClient restClient = RestClient.create();
     private final ObjectMapper mapper = new ObjectMapper();
     private final AgentTools tools;
+    private final AgentConfigRepository agentConfigRepository;
 
     @Value("${openai.api.key:}")
     private String apiKey;
@@ -176,8 +93,38 @@ public class AgentService {
     @Value("${openai.api.model:gpt-4o-mini}")
     private String model;
 
-    public AgentService(AgentTools tools) {
+    public AgentService(AgentTools tools, AgentConfigRepository agentConfigRepository) {
         this.tools = tools;
+        this.agentConfigRepository = agentConfigRepository;
+    }
+
+    /**
+     * שולף את ה-system prompt מהטבלה agent_config. בפעם הראשונה, אם עדיין אין
+     * שורה כזו, מזריע את ברירת המחדל ל-DB ומחזיר אותה. כך הערך החי תמיד מגיע
+     * מה-DB וניתן לעריכה ישירה בלי לקמפל מחדש.
+     */
+    private String getSystemPrompt() {
+        return agentConfigRepository.findByConfigKey(SYSTEM_PROMPT_KEY)
+                .map(AgentConfig::getConfigValue)
+                .orElseGet(() -> {
+                    String seed = loadDefaultPrompt();
+                    agentConfigRepository.save(new AgentConfig(SYSTEM_PROMPT_KEY, seed));
+                    return seed;
+                });
+    }
+
+    /**
+     * ברירת המחדל של הפרומפט נטענת מקובץ המשאבים agent/system-prompt.txt —
+     * הטקסט אינו מקודד בקוד ה-Java, ומשמש רק לזריעה ראשונית של הטבלה agent_config.
+     */
+    private String loadDefaultPrompt() {
+        try {
+            var res = new ClassPathResource("agent/system-prompt.txt");
+            return new String(res.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+        } catch (Exception e) {
+            log.error("Failed to load default system prompt from resources", e);
+            return "אתה העוזר החכם של FixMate. היום %s.";
+        }
     }
 
     public boolean isConfigured() {
@@ -197,7 +144,7 @@ public class AgentService {
         // בונים את השיחה: הוראות, דוגמאות לשיחות נכונות, ואז ההיסטוריה האמיתית
         List<Map<String, Object>> messages = new ArrayList<>();
         messages.add(Map.of("role", "system",
-                "content", String.format(SYSTEM_PROMPT, LocalDate.now())));
+                "content", String.format(getSystemPrompt(), LocalDate.now())));
 
         messages.add(Map.of("role", "system", "content",
                 "הדוגמאות הבאות ממחישות את הסגנון הנדרש. הן אינן חלק מהשיחה "
