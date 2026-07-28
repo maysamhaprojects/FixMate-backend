@@ -7,6 +7,8 @@ import com.fixmate.modules.auth.model.User;
 import com.fixmate.modules.auth.repository.UserRepository;
 import com.fixmate.modules.pro.model.ProProfile;
 import com.fixmate.modules.pro.repository.ProProfileRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import com.fixmate.security.jwt.JwtService;
@@ -14,6 +16,8 @@ import com.fixmate.common.email.EmailService;
 
 @Service
 public class AuthService {
+
+    private static final Logger log = LoggerFactory.getLogger(AuthService.class);
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -79,6 +83,7 @@ public class AuthService {
         }
 
         String token = jwtService.generateToken(user.getEmail());
+        log.info("New account registered: {} (role {})", user.getEmail(), user.getRole());
         return new AuthResponse(token, user.getRole().name(), user.getFullName());
     }
 
@@ -105,6 +110,7 @@ public class AuthService {
             }
         }
         String token = jwtService.generateToken(user.getEmail());
+        log.info("User signed in: {} (role {})", user.getEmail(), user.getRole());
         return new AuthResponse(token, user.getRole().name(), user.getFullName());
     }
 }

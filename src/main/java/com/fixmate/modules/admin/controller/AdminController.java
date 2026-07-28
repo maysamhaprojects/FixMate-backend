@@ -12,6 +12,8 @@ import com.fixmate.modules.complaint.repository.ComplaintRepository;
 import com.fixmate.modules.rating.model.Rating;
 import com.fixmate.modules.rating.repository.RatingRepository;
 import com.fixmate.common.email.EmailService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -23,6 +25,8 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/admin")
 public class AdminController {
+
+    private static final Logger log = LoggerFactory.getLogger(AdminController.class);
 
     private final ProProfileRepository proProfileRepository;
     private final UserRepository userRepository;
@@ -60,6 +64,8 @@ public class AdminController {
             pro.setApproved(true);
             proProfileRepository.save(pro);
             User u = pro.getUser();
+            log.info("Professional approved by admin: {} (profile #{})",
+                    u != null ? u.getEmail() : "unknown", pro.getId());
             if (u != null) emailService.send(u.getEmail(),
                 "FixMate — החשבון שלך אושר! 🎉",
                 "שלום " + u.getFullName() + ",\n\n" +

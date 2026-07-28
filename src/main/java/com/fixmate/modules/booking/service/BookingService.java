@@ -7,12 +7,16 @@ import com.fixmate.modules.booking.model.Booking;
 import com.fixmate.modules.booking.model.BookingStatus;
 import com.fixmate.modules.booking.repository.BookingRepository;
 import com.fixmate.common.email.EmailService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 
 @Service
 public class BookingService {
+
+    private static final Logger log = LoggerFactory.getLogger(BookingService.class);
 
     private final BookingRepository bookingRepository;
     private final UserRepository userRepository;
@@ -38,6 +42,8 @@ public class BookingService {
         booking.setStatus(BookingStatus.PENDING);
 
         Booking saved = bookingRepository.save(booking);
+        log.info("Booking #{} created: client {} -> pro {}, service '{}'",
+                saved.getId(), client.getId(), pro.getId(), req.getServiceType());
 
         // מייל לבעל המקצוע — הזמנה חדשה
         emailService.send(pro.getEmail(),
@@ -86,6 +92,7 @@ public class BookingService {
             booking.setTotalPrice(finalPrice);
         }
         Booking saved = bookingRepository.save(booking);
+        log.info("Booking #{} status changed to {} by user {}", bookingId, newStatus, requester.getId());
 
         // מייל ללקוח על עדכון הסטטוס
         User client = booking.getClient();
@@ -166,6 +173,7 @@ public class BookingService {
         booking.setStatus(BookingStatus.CANCELLED);
         if (reason != null && !reason.isBlank()) booking.setCancellationReason(reason.trim());
         bookingRepository.save(booking);
+        log.info("Booking #{} cancelled by client {}", bookingId, client.getId());
 
         String reasonLine = (reason != null && !reason.isBlank())
                 ? ("סיבת הביטול: " + reason.trim() + "\n") : "";
