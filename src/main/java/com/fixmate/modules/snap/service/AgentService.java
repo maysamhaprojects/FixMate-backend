@@ -174,14 +174,8 @@ public class AgentService {
 
         // תמונה מצורפת — נדחפת להודעה האחרונה של המשתמש
         boolean hasImage = imageBase64 != null && imageBase64.startsWith("data:image");
-        log.info("[snap-debug] imageBase64!=null={}, len={}, prefix={}, hasImage={}",
-                imageBase64 != null,
-                imageBase64 == null ? 0 : imageBase64.length(),
-                imageBase64 == null ? "null" : imageBase64.substring(0, Math.min(20, imageBase64.length())),
-                hasImage);
         if (hasImage && !messages.isEmpty()) {
             Map<String, Object> last = messages.get(messages.size() - 1);
-            log.info("[snap-debug] lastMsgRole={}", last.get("role"));
             if ("user".equals(last.get("role"))) {
                 messages.set(messages.size() - 1, Map.of(
                     "role", "user",
@@ -232,7 +226,10 @@ public class AgentService {
         // תקלה בטוחה בהודעה הראשונה: מפיקים הדרכה לתיקון עצמי בקריאה נפרדת
         // וממוקדת, כדי שמהלך ההזמנה שבפרומפט הראשי לא יתחרה ולא יגרום לקפיצה
         // לשאלת עיר. זו התנהגות שנאכפת בקוד, לא בבקשה למודל.
-        boolean forceDiy = !mustAct && orderIntentForce == null && shouldForceDiy(history);
+        // כשצורפה תמונה — לעולם לא לדלג למסלול ה-DIY (שמתעלם מהתמונה). התמונה
+        // חייבת להגיע למודל הראייה כדי שינתח אותה. (בלי זה, כיתוב כמו "צירפתי
+        // תמונה" נתפס בטעות כמילת-DIY בגלל הרצף "ציר", והתמונה נזרקת.)
+        boolean forceDiy = !mustAct && orderIntentForce == null && !hasImage && shouldForceDiy(history);
         if (forceDiy) {
             String userText = String.valueOf(
                 history.get(history.size() - 1).getOrDefault("content", ""));
@@ -525,11 +522,6 @@ public class AgentService {
         body.put("temperature", 0.3);
         body.put("messages", messages);
         body.put("tools", tools.definitions());
-        try {
-            String dbg = mapper.writeValueAsString(body);
-            log.info("[snap-debug] outgoing OpenAI request: model={}, containsImageUrl={}, bodyLen={}",
-                    model, dbg.contains("image_url"), dbg.length());
-        } catch (Exception ignore) {}
         if (forceToolName != null && !forceToolName.isBlank()) {
             body.put("tool_choice", Map.of("type", "function",
                     "function", Map.of("name", forceToolName)));
