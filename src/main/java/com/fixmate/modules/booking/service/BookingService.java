@@ -2,6 +2,8 @@ package com.fixmate.modules.booking.service;
 
 import com.fixmate.modules.auth.model.User;
 import com.fixmate.modules.auth.repository.UserRepository;
+import com.fixmate.modules.availability.model.ProAvailability;
+import com.fixmate.modules.availability.service.AvailabilityService;
 import com.fixmate.modules.booking.dto.BookingRequest;
 import com.fixmate.modules.booking.model.Booking;
 import com.fixmate.modules.booking.model.BookingStatus;
@@ -11,6 +13,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 
 @Service
@@ -21,11 +26,14 @@ public class BookingService {
     private final BookingRepository bookingRepository;
     private final UserRepository userRepository;
     private final EmailService emailService;
+    private final AvailabilityService availabilityService;
 
-    public BookingService(BookingRepository bookingRepository, UserRepository userRepository, EmailService emailService) {
+    public BookingService(BookingRepository bookingRepository, UserRepository userRepository,
+                          EmailService emailService, AvailabilityService availabilityService) {
         this.bookingRepository = bookingRepository;
         this.userRepository = userRepository;
         this.emailService = emailService;
+        this.availabilityService = availabilityService;
     }
 
     public Booking createBooking(User client, BookingRequest req) {
@@ -73,6 +81,44 @@ public class BookingService {
 
     public List<Booking> getProBookings(Long proId) {
         return bookingRepository.findByProIdOrderByCreatedAtDesc(proId);
+    }
+
+    /**
+     * האם בעל המקצוע עובד ביום ובשעה הנתונים, לפי לוח הזמינות שלו.
+     * בעל מקצוע שלא הגדיר לוח כלל אינו מגביל את שעותיו — נחשב זמין.
+     */
+    private boolean worksAt(Long proUserId, LocalDateTime when) {
+        if (proUserId == null) return false;
+        List<ProAvailability> slots = availabilityService.getAvailability(proUserId);
+        if (slots == null || slots.isEmpty()) return true;
+        String day = when.getDayOfWeek().name();   // SUNDAY, MONDAY, ...
+        LocalTime t = when.toLocalTime();
+        for (ProAvailability s : slots) {
+            if (!day.equalsIgnoreCase(s.getDayOfWeek())) continue;
+            if (!s.isAvailable()) continue;
+            if (s.getStartTime() == null || s.getEndTime() == null) continue;
+            if (!t.isBefore(s.getStartTime()) && !t.isAfter(s.getEndTime())) return true;
+        }
+        return false;
+    }
+
+    /**
+     * האם לבעל המקצוע כבר יש הזמנה פעילה (ממתינה/מאושרת) שמתנגשת עם המועד
+     * (פחות משעה הפרש). מדלגים על ההזמנה שנערכת עצמה כדי שלא תתנגש עם עצמה.
+     */
+    private boolean hasClash(Long proUserId, LocalDateTime when, Long excludeBookingId) {
+        if (proUserId == null) return false;
+        List<Booking> proBookings = getProBookings(proUserId);
+        if (proBookings == null) return false;
+        for (Booking b : proBookings) {
+            if (excludeBookingId != null && excludeBookingId.equals(b.getId())) continue;
+            String st = String.valueOf(b.getStatus());
+            boolean active = "PENDING".equals(st) || "CONFIRMED".equals(st);
+            if (!active || b.getScheduledAt() == null) continue;
+            long gap = Math.abs(Duration.between(b.getScheduledAt(), when).toMinutes());
+            if (gap < 60) return true;
+        }
+        return false;
     }
 
     public Booking updateStatus(Long bookingId, BookingStatus newStatus, Double finalPrice, User requester) {
@@ -128,6 +174,19 @@ public class BookingService {
         // אפשר לערוך רק כל עוד ההזמנה ממתינה לאישור בעל המקצוע
         if (booking.getStatus() != BookingStatus.PENDING) {
             throw new RuntimeException("Only pending orders can be edited");
+        }
+
+        // בדיקת זמינות למועד החדש — בעל המקצוע חייב לעבוד אז ולא להיות תפוס.
+        // (מדלגים על ההזמנה הנוכחית בבדיקת ההתנגשות כדי שלא תתנגש עם עצמה.)
+        User proForCheck = booking.getPro();
+        if (scheduledAt != null && proForCheck != null) {
+            Long proUserId = proForCheck.getId();
+            if (!worksAt(proUserId, scheduledAt)) {
+                throw new RuntimeException("בעל המקצוע לא עובד במועד שבחרת. אנא בחרו מועד אחר.");
+            }
+            if (hasClash(proUserId, scheduledAt, bookingId)) {
+                throw new RuntimeException("בעל המקצוע כבר תפוס במועד הזה. אנא בחרו מועד אחר.");
+            }
         }
 
         if (scheduledAt != null) booking.setScheduledAt(scheduledAt);
