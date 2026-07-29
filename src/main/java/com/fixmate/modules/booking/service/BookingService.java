@@ -40,6 +40,9 @@ public class BookingService {
         User pro = userRepository.findById(req.getProId())
                 .orElseThrow(() -> new RuntimeException("Professional not found"));
 
+        // אסור לקבוע מועד שכבר עבר
+        requireFutureDate(req.getScheduledAt());
+
         Booking booking = new Booking();
         booking.setClient(client);
         booking.setPro(pro);
@@ -81,6 +84,13 @@ public class BookingService {
 
     public List<Booking> getProBookings(Long proId) {
         return bookingRepository.findByProIdOrderByCreatedAtDesc(proId);
+    }
+
+    /** מוודא שהמועד המבוקש אינו בעבר — אחרת זורק שגיאה ברורה. */
+    private void requireFutureDate(LocalDateTime scheduledAt) {
+        if (scheduledAt != null && scheduledAt.isBefore(LocalDateTime.now())) {
+            throw new RuntimeException("לא ניתן לקבוע מועד שכבר עבר. אנא בחרו תאריך ושעה עתידיים.");
+        }
     }
 
     /**
@@ -175,6 +185,9 @@ public class BookingService {
         if (booking.getStatus() != BookingStatus.PENDING) {
             throw new RuntimeException("Only pending orders can be edited");
         }
+
+        // אסור לקבוע מועד שכבר עבר
+        requireFutureDate(scheduledAt);
 
         // בדיקת זמינות למועד החדש — בעל המקצוע חייב לעבוד אז ולא להיות תפוס.
         // (מדלגים על ההזמנה הנוכחית בבדיקת ההתנגשות כדי שלא תתנגש עם עצמה.)
