@@ -384,10 +384,12 @@ public class AgentTools {
     /** האם בעל המקצוע עובד ביום ובשעה של המועד הנתון */
     private boolean worksAt(Long proUserId, LocalDateTime when) {
         if (proUserId == null) return false;
+        List<ProAvailability> slots = availabilityService.getAvailability(proUserId);
+        // בעל מקצוע שלא הגדיר זמינות כלל אינו מגביל את שעותיו — מניחים שהוא
+        // זמין, כדי לא לחסום הזמנות. ההגבלה לפי יום/שעה חלה רק כשהגדיר לוח.
+        if (slots == null || slots.isEmpty()) return true;
         String day = when.getDayOfWeek().name();   // SUNDAY, MONDAY, ...
         LocalTime t = when.toLocalTime();
-        List<ProAvailability> slots = availabilityService.getAvailability(proUserId);
-        if (slots == null) return false;
         for (ProAvailability s : slots) {
             if (!day.equalsIgnoreCase(s.getDayOfWeek())) continue;
             if (!s.isAvailable()) continue;
