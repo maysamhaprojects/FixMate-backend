@@ -1,5 +1,6 @@
 package com.fixmate.modules.auth.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
@@ -19,6 +20,10 @@ public class User {
     @Column(nullable = false)
     private String email;
 
+    // לעולם לא נחשף בתשובות ה-API (JSON) — סיסמה מוצפנת היא מידע רגיש.
+    // @JsonIgnore חוסם גם קריאה מ-JSON, וזה תקין: הסיסמה נקבעת בשרת בלבד
+    // (מ-DTO של הרשמה/כניסה), לא מגוף הבקשה של ישות המשתמש.
+    @JsonIgnore
     @Column(nullable = false)
     private String passwordHash;
 
