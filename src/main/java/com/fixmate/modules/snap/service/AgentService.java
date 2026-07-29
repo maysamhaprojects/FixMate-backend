@@ -174,8 +174,14 @@ public class AgentService {
 
         // תמונה מצורפת — נדחפת להודעה האחרונה של המשתמש
         boolean hasImage = imageBase64 != null && imageBase64.startsWith("data:image");
+        log.info("[snap-debug] imageBase64!=null={}, len={}, prefix={}, hasImage={}",
+                imageBase64 != null,
+                imageBase64 == null ? 0 : imageBase64.length(),
+                imageBase64 == null ? "null" : imageBase64.substring(0, Math.min(20, imageBase64.length())),
+                hasImage);
         if (hasImage && !messages.isEmpty()) {
             Map<String, Object> last = messages.get(messages.size() - 1);
+            log.info("[snap-debug] lastMsgRole={}", last.get("role"));
             if ("user".equals(last.get("role"))) {
                 messages.set(messages.size() - 1, Map.of(
                     "role", "user",
@@ -519,6 +525,11 @@ public class AgentService {
         body.put("temperature", 0.3);
         body.put("messages", messages);
         body.put("tools", tools.definitions());
+        try {
+            String dbg = mapper.writeValueAsString(body);
+            log.info("[snap-debug] outgoing OpenAI request: model={}, containsImageUrl={}, bodyLen={}",
+                    model, dbg.contains("image_url"), dbg.length());
+        } catch (Exception ignore) {}
         if (forceToolName != null && !forceToolName.isBlank()) {
             body.put("tool_choice", Map.of("type", "function",
                     "function", Map.of("name", forceToolName)));
