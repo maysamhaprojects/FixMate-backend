@@ -59,26 +59,28 @@ public class BookingService {
 
         // מייל לבעל המקצוע — הזמנה חדשה
         emailService.send(pro.getEmail(),
-            "FixMate — התקבלה הזמנה חדשה",
+            "FixMate — התקבלה הזמנה חדשה 🔔",
             "שלום " + pro.getFullName() + ",\n\n" +
-            "התקבלה עבורך הזמנת שירות חדשה דרך FixMate. להלן הפרטים:\n\n" +
-            "• לקוח: " + client.getFullName() + "\n" +
-            "• שירות: " + req.getServiceType() + "\n" +
-            "• מועד מבוקש: " + fmtDate(req.getScheduledAt()) + "\n" +
-            "• כתובת: " + req.getAddress() + "\n\n" +
-            "יש להיכנס למערכת FixMate כדי לאשר או לדחות את ההזמנה.\n\n" +
-            "בברכה,\nצוות FixMate");
+            "התקבלה עבורך הזמנת שירות חדשה דרך FixMate. 🎉\n\n" +
+            "📋 פרטי ההזמנה:\n" +
+            "👤 לקוח: " + client.getFullName() + "\n" +
+            "🛠️ שירות: " + req.getServiceType() + "\n" +
+            "📅 מועד מבוקש: " + fmtDate(req.getScheduledAt()) + "\n" +
+            "📍 כתובת: " + req.getAddress() + "\n\n" +
+            "יש להיכנס למערכת FixMate כדי לאשר או לדחות את ההזמנה. ✅\n\n" +
+            "בברכה,\n🔧 צוות FixMate");
 
         // מייל ללקוח — ההזמנה נשלחה
         emailService.send(client.getEmail(),
-            "FixMate — הזמנתך התקבלה",
+            "FixMate — הזמנתך התקבלה ✅",
             "שלום " + client.getFullName() + ",\n\n" +
-            "תודה שבחרת ב-FixMate! הזמנתך נשלחה לבעל המקצוע וממתינה לאישורו. להלן הפרטים:\n\n" +
-            "• בעל מקצוע: " + pro.getFullName() + "\n" +
-            "• שירות: " + req.getServiceType() + "\n" +
-            "• מועד מבוקש: " + fmtDate(req.getScheduledAt()) + "\n\n" +
-            "נעדכן אותך במייל ברגע שההזמנה תאושר.\n\n" +
-            "בברכה,\nצוות FixMate");
+            "תודה שבחרת ב-FixMate! 🎉 הזמנתך נשלחה לבעל המקצוע וממתינה לאישורו.\n\n" +
+            "📋 פרטי ההזמנה:\n" +
+            "👤 בעל מקצוע: " + pro.getFullName() + "\n" +
+            "🛠️ שירות: " + req.getServiceType() + "\n" +
+            "📅 מועד מבוקש: " + fmtDate(req.getScheduledAt()) + "\n\n" +
+            "נעדכן אותך במייל ברגע שההזמנה תאושר. 🔔\n\n" +
+            "בברכה,\n🔧 צוות FixMate");
 
         return saved;
     }
@@ -168,18 +170,18 @@ public class BookingService {
         if (client != null) {
             String proName = pro != null ? pro.getFullName() : "בעל המקצוע";
             String line = switch (newStatus) {
-                case CONFIRMED   -> "ההזמנה שלך אושרה על ידי " + proName + "!";
-                case IN_PROGRESS -> proName + " התחיל לטפל בהזמנה שלך.";
-                case COMPLETED   -> "העבודה עם " + proName + " הושלמה"
-                                    + (booking.getTotalPrice() != null ? ". המחיר הסופי: ₪" + booking.getTotalPrice() : "")
-                                    + ". אפשר לדרג את השירות ב-FixMate!";
-                case CANCELLED   -> "ההזמנה שלך בוטלה.";
+                case CONFIRMED   -> "✅ הזמנתך אושרה על ידי " + proName + "! נתראה במועד שנקבע.";
+                case IN_PROGRESS -> "🔧 " + proName + " התחיל לטפל בהזמנה שלך.";
+                case COMPLETED   -> "🎉 העבודה עם " + proName + " הושלמה"
+                                    + (booking.getTotalPrice() != null ? ".\n💰 המחיר הסופי: ₪" + booking.getTotalPrice() : "")
+                                    + "\n\n⭐ נשמח אם תדרג/י את השירות ב-FixMate — זה עוזר ללקוחות אחרים!";
+                case CANCELLED   -> "❌ הזמנתך בוטלה.";
                 default          -> null;
             };
             if (line != null) {
                 emailService.send(client.getEmail(),
-                    "FixMate — עדכון בהזמנה שלך",
-                    "שלום " + client.getFullName() + ",\n\n" + line + "\n\nבברכה,\nצוות FixMate");
+                    "FixMate — עדכון בהזמנה שלך 🔔",
+                    "שלום " + client.getFullName() + ",\n\n" + line + "\n\nבברכה,\n🔧 צוות FixMate");
             }
         }
         return saved;
@@ -224,26 +226,28 @@ public class BookingService {
         User pro = booking.getPro();
         if (pro != null) {
             emailService.send(pro.getEmail(),
-                "FixMate — עדכון בהזמנה",
+                "FixMate — עדכון בהזמנה ✏️",
                 "שלום " + pro.getFullName() + ",\n\n" +
-                "הלקוח " + client.getFullName() + " עדכן פרטים בהזמנה הממתינה לאישורך. הפרטים המעודכנים:\n\n" +
-                "• שירות: " + booking.getServiceType() + "\n" +
-                "• מועד מעודכן: " + fmtDate(booking.getScheduledAt()) + "\n" +
-                "• כתובת מעודכנת: " + booking.getAddress() + "\n\n" +
-                "יש להיכנס למערכת FixMate כדי לצפות ולאשר.\n\n" +
-                "בברכה,\nצוות FixMate");
+                "הלקוח " + client.getFullName() + " עדכן פרטים בהזמנה הממתינה לאישורך.\n\n" +
+                "📋 הפרטים המעודכנים:\n" +
+                "🛠️ שירות: " + booking.getServiceType() + "\n" +
+                "📅 מועד מעודכן: " + fmtDate(booking.getScheduledAt()) + "\n" +
+                "📍 כתובת מעודכנת: " + booking.getAddress() + "\n\n" +
+                "יש להיכנס למערכת FixMate כדי לצפות ולאשר. ✅\n\n" +
+                "בברכה,\n🔧 צוות FixMate");
         }
 
         // אישור ללקוח — מה בדיוק נשמר אחרי העדכון
         emailService.send(client.getEmail(),
-            "FixMate — הזמנתך עודכנה",
+            "FixMate — הזמנתך עודכנה ✏️",
             "שלום " + client.getFullName() + ",\n\n" +
-            "פרטי הזמנתך" + (pro != null ? (" אצל " + pro.getFullName()) : "") + " עודכנו בהצלחה. הפרטים המעודכנים:\n\n" +
-            "• שירות: " + booking.getServiceType() + "\n" +
-            "• מועד מעודכן: " + fmtDate(booking.getScheduledAt()) + "\n" +
-            "• כתובת מעודכנת: " + booking.getAddress() + "\n\n" +
-            "ההזמנה ממתינה לאישור בעל המקצוע.\n\n" +
-            "בברכה,\nצוות FixMate");
+            "פרטי הזמנתך" + (pro != null ? (" אצל " + pro.getFullName()) : "") + " עודכנו בהצלחה. ✅\n\n" +
+            "📋 הפרטים המעודכנים:\n" +
+            "🛠️ שירות: " + booking.getServiceType() + "\n" +
+            "📅 מועד מעודכן: " + fmtDate(booking.getScheduledAt()) + "\n" +
+            "📍 כתובת מעודכנת: " + booking.getAddress() + "\n\n" +
+            "ההזמנה ממתינה לאישור בעל המקצוע. 🔔\n\n" +
+            "בברכה,\n🔧 צוות FixMate");
 
         return saved;
     }
@@ -268,21 +272,22 @@ public class BookingService {
         User pro = booking.getPro();
         if (pro != null) {
             emailService.send(pro.getEmail(),
-                "FixMate — הזמנה בוטלה",
+                "FixMate — הזמנה בוטלה ❌",
                 "שלום " + pro.getFullName() + ",\n\n" +
-                "ההזמנה של " + client.getFullName() + " בוטלה.\n" +
-                reasonLine +
-                "\nבברכה,\nצוות FixMate");
+                "❌ ההזמנה של " + client.getFullName() + " בוטלה.\n" +
+                (reasonLine.isEmpty() ? "" : "📝 " + reasonLine) +
+                "\nבברכה,\n🔧 צוות FixMate");
         }
 
         // אישור ללקוח — תיעוד הביטול
         emailService.send(client.getEmail(),
-            "FixMate — הזמנתך בוטלה",
+            "FixMate — הזמנתך בוטלה ❌",
             "שלום " + client.getFullName() + ",\n\n" +
-            "הזמנתך" + (pro != null ? (" אצל " + pro.getFullName()) : "") + " בוטלה. להלן הפרטים:\n\n" +
-            "• שירות: " + booking.getServiceType() + "\n" +
-            "• מועד שהיה מתוכנן: " + fmtDate(booking.getScheduledAt()) + "\n" +
-            reasonLine +
-            "\nבברכה,\nצוות FixMate");
+            "❌ הזמנתך" + (pro != null ? (" אצל " + pro.getFullName()) : "") + " בוטלה.\n\n" +
+            "📋 פרטי ההזמנה שבוטלה:\n" +
+            "🛠️ שירות: " + booking.getServiceType() + "\n" +
+            "📅 מועד שהיה מתוכנן: " + fmtDate(booking.getScheduledAt()) + "\n" +
+            (reasonLine.isEmpty() ? "" : "📝 " + reasonLine) +
+            "\nבברכה,\n🔧 צוות FixMate");
     }
 }
