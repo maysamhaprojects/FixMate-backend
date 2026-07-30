@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @Service
@@ -58,22 +59,26 @@ public class BookingService {
 
         // מייל לבעל המקצוע — הזמנה חדשה
         emailService.send(pro.getEmail(),
-            "FixMate — הזמנה חדשה!",
+            "FixMate — התקבלה הזמנה חדשה",
             "שלום " + pro.getFullName() + ",\n\n" +
-            "קיבלת הזמנה חדשה מ-" + client.getFullName() + ".\n" +
-            "שירות: " + req.getServiceType() + "\n" +
-            "מועד: " + req.getScheduledAt() + "\n" +
-            "כתובת: " + req.getAddress() + "\n\n" +
-            "היכנס ל-FixMate כדי לאשר את ההזמנה.\n\nצוות FixMate");
+            "התקבלה עבורך הזמנת שירות חדשה דרך FixMate. להלן הפרטים:\n\n" +
+            "• לקוח: " + client.getFullName() + "\n" +
+            "• שירות: " + req.getServiceType() + "\n" +
+            "• מועד מבוקש: " + fmtDate(req.getScheduledAt()) + "\n" +
+            "• כתובת: " + req.getAddress() + "\n\n" +
+            "יש להיכנס למערכת FixMate כדי לאשר או לדחות את ההזמנה.\n\n" +
+            "בברכה,\nצוות FixMate");
 
         // מייל ללקוח — ההזמנה נשלחה
         emailService.send(client.getEmail(),
-            "FixMate — ההזמנה שלך נשלחה",
+            "FixMate — הזמנתך התקבלה",
             "שלום " + client.getFullName() + ",\n\n" +
-            "הזמנתך אצל " + pro.getFullName() + " נשלחה וממתינה לאישור בעל המקצוע.\n" +
-            "שירות: " + req.getServiceType() + "\n" +
-            "מועד: " + req.getScheduledAt() + "\n\n" +
-            "נעדכן אותך כשההזמנה תאושר.\n\nצוות FixMate");
+            "תודה שבחרת ב-FixMate! הזמנתך נשלחה לבעל המקצוע וממתינה לאישורו. להלן הפרטים:\n\n" +
+            "• בעל מקצוע: " + pro.getFullName() + "\n" +
+            "• שירות: " + req.getServiceType() + "\n" +
+            "• מועד מבוקש: " + fmtDate(req.getScheduledAt()) + "\n\n" +
+            "נעדכן אותך במייל ברגע שההזמנה תאושר.\n\n" +
+            "בברכה,\nצוות FixMate");
 
         return saved;
     }
@@ -84,6 +89,13 @@ public class BookingService {
 
     public List<Booking> getProBookings(Long proId) {
         return bookingRepository.findByProIdOrderByCreatedAtDesc(proId);
+    }
+
+    /** פורמט תאריך קריא למיילים: "30/07/2026 בשעה 17:00" (במקום ה-ISO עם ה-T). */
+    private static final DateTimeFormatter DATE_FMT =
+            DateTimeFormatter.ofPattern("dd/MM/yyyy 'בשעה' HH:mm");
+    private String fmtDate(LocalDateTime dt) {
+        return dt == null ? "—" : dt.format(DATE_FMT);
     }
 
     /** מוודא שהמועד המבוקש אינו בעבר — אחרת זורק שגיאה ברורה. */
@@ -167,7 +179,7 @@ public class BookingService {
             if (line != null) {
                 emailService.send(client.getEmail(),
                     "FixMate — עדכון בהזמנה שלך",
-                    "שלום " + client.getFullName() + ",\n\n" + line + "\n\nצוות FixMate");
+                    "שלום " + client.getFullName() + ",\n\n" + line + "\n\nבברכה,\nצוות FixMate");
             }
         }
         return saved;
@@ -212,24 +224,26 @@ public class BookingService {
         User pro = booking.getPro();
         if (pro != null) {
             emailService.send(pro.getEmail(),
-                "FixMate — הזמנה עודכנה",
+                "FixMate — עדכון בהזמנה",
                 "שלום " + pro.getFullName() + ",\n\n" +
-                "הלקוח " + client.getFullName() + " עדכן פרטים בהזמנה שממתינה לאישורך.\n" +
-                "שירות: " + booking.getServiceType() + "\n" +
-                "מועד מעודכן: " + booking.getScheduledAt() + "\n" +
-                "כתובת מעודכנת: " + booking.getAddress() + "\n\n" +
-                "היכנס ל-FixMate כדי לצפות ולאשר.\n\nצוות FixMate");
+                "הלקוח " + client.getFullName() + " עדכן פרטים בהזמנה הממתינה לאישורך. הפרטים המעודכנים:\n\n" +
+                "• שירות: " + booking.getServiceType() + "\n" +
+                "• מועד מעודכן: " + fmtDate(booking.getScheduledAt()) + "\n" +
+                "• כתובת מעודכנת: " + booking.getAddress() + "\n\n" +
+                "יש להיכנס למערכת FixMate כדי לצפות ולאשר.\n\n" +
+                "בברכה,\nצוות FixMate");
         }
 
         // אישור ללקוח — מה בדיוק נשמר אחרי העדכון
         emailService.send(client.getEmail(),
-            "FixMate — ההזמנה שלך עודכנה",
+            "FixMate — הזמנתך עודכנה",
             "שלום " + client.getFullName() + ",\n\n" +
-            "פרטי ההזמנה שלך" + (pro != null ? (" אצל " + pro.getFullName()) : "") + " עודכנו.\n" +
-            "שירות: " + booking.getServiceType() + "\n" +
-            "מועד מעודכן: " + booking.getScheduledAt() + "\n" +
-            "כתובת מעודכנת: " + booking.getAddress() + "\n\n" +
-            "ההזמנה ממתינה לאישור בעל המקצוע.\n\nצוות FixMate");
+            "פרטי הזמנתך" + (pro != null ? (" אצל " + pro.getFullName()) : "") + " עודכנו בהצלחה. הפרטים המעודכנים:\n\n" +
+            "• שירות: " + booking.getServiceType() + "\n" +
+            "• מועד מעודכן: " + fmtDate(booking.getScheduledAt()) + "\n" +
+            "• כתובת מעודכנת: " + booking.getAddress() + "\n\n" +
+            "ההזמנה ממתינה לאישור בעל המקצוע.\n\n" +
+            "בברכה,\nצוות FixMate");
 
         return saved;
     }
@@ -258,17 +272,17 @@ public class BookingService {
                 "שלום " + pro.getFullName() + ",\n\n" +
                 "ההזמנה של " + client.getFullName() + " בוטלה.\n" +
                 reasonLine +
-                "\nצוות FixMate");
+                "\nבברכה,\nצוות FixMate");
         }
 
         // אישור ללקוח — תיעוד הביטול
         emailService.send(client.getEmail(),
-            "FixMate — ההזמנה שלך בוטלה",
+            "FixMate — הזמנתך בוטלה",
             "שלום " + client.getFullName() + ",\n\n" +
-            "ההזמנה שלך" + (pro != null ? (" אצל " + pro.getFullName()) : "") + " בוטלה.\n" +
-            "שירות: " + booking.getServiceType() + "\n" +
-            "מועד שהיה מתוכנן: " + booking.getScheduledAt() + "\n" +
+            "הזמנתך" + (pro != null ? (" אצל " + pro.getFullName()) : "") + " בוטלה. להלן הפרטים:\n\n" +
+            "• שירות: " + booking.getServiceType() + "\n" +
+            "• מועד שהיה מתוכנן: " + fmtDate(booking.getScheduledAt()) + "\n" +
             reasonLine +
-            "\nצוות FixMate");
+            "\nבברכה,\nצוות FixMate");
     }
 }
