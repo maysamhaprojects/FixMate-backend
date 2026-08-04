@@ -6,6 +6,12 @@
 
 This repository contains the **backend** (Spring Boot API). The web app lives in a separate repo: **[FixMate-frontend](https://github.com/maysamhaprojects/FixMate-frontend)**.
 
+## 🌐 Live Demo
+
+The full application is deployed and running live on the cloud (AWS EC2, Docker, HTTPS): **https://fixmate.duckdns.org**
+
+Setup and run instructions live in the frontend repo: **[HOW-TO-RUN.md](https://github.com/maysamhaprojects/FixMate-frontend/blob/main/HOW-TO-RUN.md)** and **[USER-GUIDE.md](https://github.com/maysamhaprojects/FixMate-frontend/blob/main/USER-GUIDE.md)**.
+
 ---
 
 ## ✨ Features
@@ -25,7 +31,9 @@ This repository contains the **backend** (Spring Boot API). The web app lives in
 - **Spring Data JPA** / Hibernate
 - **MySQL**
 - **Spring Mail** (Gmail SMTP)
+- **OpenAI API** (AI assistant — chat, tool calling, and vision)
 - **Maven**
+- **Deployment:** Docker · AWS EC2 · Caddy (HTTPS) · AWS CloudWatch (logs) · GitHub Actions (automatic deployment)
 
 ## 🚀 Getting Started
 

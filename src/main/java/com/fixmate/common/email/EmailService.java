@@ -5,11 +5,7 @@ import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 
-/**
- * שירות שליחת מיילים דרך SMTP (Gmail).
- * אם app.mail.enabled=false — לא נשלח מייל אמיתי (רק נרשם ללוג), כדי שהאפליקציה תעבוד גם בלי הגדרות.
- * השליחה עטופה ב-try/catch כדי שכישלון מייל לא יפיל את הפעולה (הרשמה/אישור/הזמנה).
- */
+
 @Service
 public class EmailService {
 
