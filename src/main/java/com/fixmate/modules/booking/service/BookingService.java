@@ -156,6 +156,15 @@ public class BookingService {
         return false;
     }
 
+    /**
+     * האם בעל המקצוע פנוי במועד נתון — גם עובד אז (worksAt) וגם בלי הזמנה
+     * מתנגשת (hasClash). משמש לסינון תוצאות החיפוש למועד שהלקוח בחר, כדי
+     * שלא יוצגו מקצוענים שממילא ייחסמו ביצירת ההזמנה.
+     */
+    public boolean isAvailableAt(Long proUserId, LocalDateTime when) {
+        return worksAt(proUserId, when) && !hasClash(proUserId, when, null);
+    }
+
     public Booking updateStatus(Long bookingId, BookingStatus newStatus, Double finalPrice, User requester) {
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new RuntimeException("Booking not found"));

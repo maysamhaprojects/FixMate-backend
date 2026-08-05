@@ -3,12 +3,15 @@ package com.fixmate.modules.client.controller;
 import com.fixmate.modules.auth.model.User;
 import com.fixmate.modules.booking.model.Booking;
 import com.fixmate.modules.booking.repository.BookingRepository;
+import com.fixmate.modules.booking.service.BookingService;
 import com.fixmate.modules.pro.model.ProProfile;
 import com.fixmate.modules.pro.service.ProService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -20,18 +23,42 @@ public class ClientController {
 
     private final ProService proService;
     private final BookingRepository bookingRepository;
+    private final BookingService bookingService;
 
-    public ClientController(ProService proService, BookingRepository bookingRepository) {
+    public ClientController(ProService proService, BookingRepository bookingRepository,
+                            BookingService bookingService) {
         this.proService = proService;
         this.bookingRepository = bookingRepository;
+        this.bookingService = bookingService;
     }
 
-    // Search pros by specialty or location
+    // Search pros by specialty or location.
+    // כשמועבר 'at' (תאריך+שעה בפורמט ISO) — מסננים למקצוענים שפנויים אז,
+    // כדי שהלקוח לא יראה מי שממילא ייחסם ביצירת ההזמנה.
     @GetMapping("/pros")
     public ResponseEntity<List<ProProfile>> searchPros(
             @RequestParam(required = false) String specialty,
-            @RequestParam(required = false) String location) {
-        return ResponseEntity.ok(proService.searchPros(specialty, location));
+            @RequestParam(required = false) String location,
+            @RequestParam(required = false) String at) {
+        List<ProProfile> pros = proService.searchPros(specialty, location);
+        LocalDateTime when = parseWhen(at);
+        if (when != null) {
+            pros = pros.stream()
+                    .filter(p -> p.getUser() != null
+                            && bookingService.isAvailableAt(p.getUser().getId(), when))
+                    .toList();
+        }
+        return ResponseEntity.ok(pros);
+    }
+
+    /** ממיר את פרמטר ה-'at' ל-LocalDateTime; מחזיר null אם ריק או לא תקין (אז לא מסננים). */
+    private LocalDateTime parseWhen(String at) {
+        if (at == null || at.isBlank()) return null;
+        try {
+            return LocalDateTime.parse(at);
+        } catch (DateTimeParseException e) {
+            return null;
+        }
     }
 
     // Get a single pro profile
