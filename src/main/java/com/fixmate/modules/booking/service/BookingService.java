@@ -44,6 +44,17 @@ public class BookingService {
         // אסור לקבוע מועד שכבר עבר
         requireFutureDate(req.getScheduledAt());
 
+        // בדיקת זמינות — בעל המקצוע חייב לעבוד במועד המבוקש ולא להיות תפוס.
+        // (אותה בדיקה כמו בשינוי מועד; להזמנה חדשה אין hasClash לדלג עליה.)
+        if (req.getScheduledAt() != null) {
+            if (!worksAt(pro.getId(), req.getScheduledAt())) {
+                throw new RuntimeException("בעל המקצוע לא עובד במועד שבחרת. אנא בחרו מועד אחר.");
+            }
+            if (hasClash(pro.getId(), req.getScheduledAt(), null)) {
+                throw new RuntimeException("בעל המקצוע כבר תפוס במועד הזה. אנא בחרו מועד אחר.");
+            }
+        }
+
         Booking booking = new Booking();
         booking.setClient(client);
         booking.setPro(pro);
