@@ -22,6 +22,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+// בקר האדמין — אישור ודחיית בעלי מקצוע, טיפול בתלונות, וניהול משתמשים. הפעולות הפשוטות ניגשות ישר למסד.
 @RestController
 @RequestMapping("/api/admin")
 public class AdminController {

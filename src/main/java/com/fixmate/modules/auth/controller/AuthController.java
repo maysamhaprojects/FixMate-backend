@@ -6,6 +6,7 @@ import com.fixmate.modules.auth.dto.RegisterRequest;
 import com.fixmate.modules.auth.service.AuthService;
 import org.springframework.web.bind.annotation.*;
 
+// בקר ההתחברות וההרשמה — מקבל את הבקשות מהפרונט ומעביר אותן לשכבת הלוגיקה.
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {

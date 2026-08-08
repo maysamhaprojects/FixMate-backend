@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 
+// בקר ההזמנות — מקבל בקשות מהפרונט (יצירה, עריכה, ביטול, שינוי סטטוס) ומעביר לשכבת הלוגיקה.
 @RestController
 @RequestMapping("/api")
 public class BookingController {

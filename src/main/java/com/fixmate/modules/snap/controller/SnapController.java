@@ -10,8 +10,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 
-// זה השער של הצ׳אטבוט — מקבל תמונה וטקסט מהלקוח ומחזיר אבחון
-// הפרונט שולח בקשה לכתובת הזו כשלקוח משתמש במסך Snap an Issue
+// בקר ה-AI — מקבל מהפרונט טקסט ותמונה, ומעביר את הצ'אט ואת אבחון התמונה לשכבות המתאימות.
 @RestController
 @RequestMapping("/api/snap")
 public class SnapController {

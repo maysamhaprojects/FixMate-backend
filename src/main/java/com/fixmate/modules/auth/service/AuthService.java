@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import com.fixmate.security.jwt.JwtService;
 import com.fixmate.common.email.EmailService;
 
+// שכבת הלוגיקה של ההתחברות וההרשמה — בודקת סיסמה, יוצרת טוקן, ושולחת מיילים.
 @Service
 public class AuthService {
 

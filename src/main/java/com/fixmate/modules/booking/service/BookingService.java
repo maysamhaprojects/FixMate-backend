@@ -19,6 +19,7 @@ import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
+// שכבת הלוגיקה של ההזמנות — יוצרת הזמנה, בודקת זמינות (שעות עבודה והתנגשות), ושומרת אותה.
 @Service
 public class BookingService {
 
